@@ -39,6 +39,7 @@ function NewProjectForm() {
   const [pillars, setPillars] = useState("");
   const [targetLength, setTargetLength] = useState("1 to 2 minutes");
   const [callToAction, setCallToAction] = useState("");
+  const [disclaimer, setDisclaimer] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -56,6 +57,7 @@ function NewProjectForm() {
           .filter(Boolean),
         targetLength: targetLength.trim(),
         callToAction: callToAction.trim(),
+        disclaimer: disclaimer.trim(),
       });
       setName("");
       setPlatforms([]);
@@ -63,6 +65,7 @@ function NewProjectForm() {
       setPillars("");
       setTargetLength("1 to 2 minutes");
       setCallToAction("");
+      setDisclaimer("");
     } finally {
       setSaving(false);
     }
@@ -104,6 +107,13 @@ function NewProjectForm() {
         value={callToAction}
         onChange={(e) => setCallToAction(e.target.value)}
       />
+      <textarea
+        className="rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
+        placeholder="Disclaimer (optional), forced into every script right after the hook, word for word"
+        rows={2}
+        value={disclaimer}
+        onChange={(e) => setDisclaimer(e.target.value)}
+      />
       <button
         type="submit"
         disabled={saving || !name.trim()}
@@ -123,6 +133,7 @@ function ProjectRow({ project }: { project: Project }) {
   const [pillars, setPillars] = useState(project.contentPillars.join(", "));
   const [targetLength, setTargetLength] = useState(project.targetLength ?? "");
   const [callToAction, setCallToAction] = useState(project.callToAction ?? "");
+  const [disclaimer, setDisclaimer] = useState(project.disclaimer ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -138,6 +149,7 @@ function ProjectRow({ project }: { project: Project }) {
           .filter(Boolean),
         targetLength: targetLength.trim(),
         callToAction: callToAction.trim(),
+        disclaimer: disclaimer.trim(),
       });
       setEditing(false);
     } finally {
@@ -166,6 +178,11 @@ function ProjectRow({ project }: { project: Project }) {
           {project.targetLength && (
             <div className="mt-1 text-xs text-black/50 dark:text-white/50">
               Target length: {project.targetLength}
+            </div>
+          )}
+          {project.disclaimer && (
+            <div className="mt-1 text-xs text-black/50 dark:text-white/50">
+              Disclaimer set (forced after hook in every script)
             </div>
           )}
         </div>
@@ -221,6 +238,13 @@ function ProjectRow({ project }: { project: Project }) {
         rows={2}
         value={callToAction}
         onChange={(e) => setCallToAction(e.target.value)}
+      />
+      <textarea
+        className="rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
+        placeholder="Disclaimer (optional), forced into every script right after the hook, word for word"
+        rows={2}
+        value={disclaimer}
+        onChange={(e) => setDisclaimer(e.target.value)}
       />
       <div className="flex gap-2">
         <button

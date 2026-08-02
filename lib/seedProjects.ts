@@ -13,6 +13,8 @@ export const STARTER_PROJECTS: SeedProject[] = [
     targetLength: "1 to 2 minutes",
     callToAction:
       "End with a short, low-pressure call to action to download the free MigraineCast app to track symptoms, triggers, and early warning signs. Mention that the link is in the description.",
+    disclaimer:
+      "Quick disclaimer before we start, I'm not a doctor. This is based on actual migraine studies, and this is not medical advice. If something feels off or new for you, please check with an actual doctor.",
   },
   {
     name: "Manifestation / Life Rebuild",
@@ -22,6 +24,7 @@ export const STARTER_PROJECTS: SeedProject[] = [
     contentPillars: ["testing a technique", "results check-in", "origin story"],
     targetLength: "1 to 2 minutes",
     callToAction: "",
+    disclaimer: "",
   },
 ];
 

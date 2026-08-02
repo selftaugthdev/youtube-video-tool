@@ -46,6 +46,7 @@ export interface Project {
   contentPillars: string[];
   targetLength: string;
   callToAction: string;
+  disclaimer: string;
   createdAt: number;
 }
 
