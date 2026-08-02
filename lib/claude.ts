@@ -231,13 +231,14 @@ const scriptTool: Tool = {
       sections: {
         type: "array",
         description:
-          "The full script broken into sections such as disclaimer, hook, body, twist or validation, relatability, and call to action. Not every script needs every label, choose whatever fits this specific video. Together the sections must add up to the full requested runtime, not a truncated summary of it.",
+          "The full script broken into sections such as disclaimer, hook, body, twist or validation, solution, relatability, and call to action. Not every script needs every label, choose whatever fits this specific video, but if the video explains a problem, trigger, or symptom, it must include a solution section with concrete next steps, not just explain the problem and move on. Together the sections must add up to the full requested runtime, not a truncated summary of it.",
         items: {
           type: "object",
           properties: {
             label: {
               type: "string",
-              description: "Short section label, e.g. Hook, Body, Twist, Relatability, CTA, Disclaimer.",
+              description:
+                "Short section label, e.g. Hook, Body, Twist, Solution, Relatability, CTA, Disclaimer.",
             },
             timestampSeconds: {
               type: "integer",
@@ -274,7 +275,7 @@ export async function generateScript(
   targetLength: string
 ): Promise<GeneratedScript> {
   const system = buildSystemPrompt(project, keywords);
-  const user = `Write a full teleprompter script based on this idea or hook:\n\n${sourceText}\n\nTarget spoken length: ${targetLength}. At a natural spoken pace of roughly 140 words per minute, write a full script that actually fills that runtime, don't undershoot it with a short summary version.\n\nStructure it into labeled, timestamped sections (for example: a brief disclaimer only if the tone or subject needs one, a hook, the main body, a twist or validation beat, a relatability moment, and a call to action). Keep any stage directions or shot notes out of the lines and put them in the notes field instead.`;
+  const user = `Write a full teleprompter script based on this idea or hook:\n\n${sourceText}\n\nTarget spoken length: ${targetLength}. At a natural spoken pace of roughly 140 words per minute, write a full script that actually fills that runtime, don't undershoot it with a short summary version.\n\nStructure it into labeled, timestamped sections (for example: a brief disclaimer only if the tone or subject needs one, a hook, the main body, a twist or validation beat, a relatability moment, and a call to action). If this video explains a trigger, problem, or symptom, do not stop at explaining it: add a solution section with a few concrete, actionable things the viewer can actually do, placed after the explanation and before the relatability/CTA close. Don't leave the viewer with only the problem and no next step. Keep any stage directions or shot notes out of the lines and put them in the notes field instead.`;
   return generateWithEmDashGuard<GeneratedScript>(system, user, scriptTool);
 }
 
