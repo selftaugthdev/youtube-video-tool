@@ -173,6 +173,9 @@ function ProjectRow({ project }: { project: Project }) {
           <Link href={`/projects/${project.id}/topics`} className="rounded border border-black/15 px-2 py-1 dark:border-white/20">
             Topic bank
           </Link>
+          <Link href={`/projects/${project.id}/titles`} className="rounded border border-black/15 px-2 py-1 dark:border-white/20">
+            Title bank
+          </Link>
           <Link href={`/projects/${project.id}/keywords`} className="rounded border border-black/15 px-2 py-1 dark:border-white/20">
             Keyword bank
           </Link>

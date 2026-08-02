@@ -174,9 +174,14 @@ export default function ContentDetailPage() {
       <section className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/10">
         <div className="flex items-center justify-between">
           <h2 className="font-medium">Platform metadata</h2>
-          <Link href={`/generate/metadata?text=${encodedIdea}`} className="text-sm underline">
-            {variantPlatforms.length > 0 ? "Regenerate →" : "Generate →"}
-          </Link>
+          <div className="flex gap-3">
+            <Link href={`/generate/titles?text=${encodedIdea}`} className="text-sm underline">
+              Titles →
+            </Link>
+            <Link href={`/generate/metadata?text=${encodedIdea}`} className="text-sm underline">
+              {variantPlatforms.length > 0 ? "Regenerate →" : "Generate →"}
+            </Link>
+          </div>
         </div>
         {variantPlatforms.length === 0 && (
           <p className="text-sm text-black/60 dark:text-white/60">No metadata yet.</p>

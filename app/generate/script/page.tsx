@@ -144,8 +144,14 @@ function ScriptGenerator() {
               {saved ? "Saved" : "Save script"}
             </button>
             <Link
-              href={`/generate/metadata?text=${encodeURIComponent(sourceText)}`}
+              href={`/generate/titles?text=${encodeURIComponent(sourceText)}`}
               className="ml-auto text-sm underline"
+            >
+              Generate titles for this →
+            </Link>
+            <Link
+              href={`/generate/metadata?text=${encodeURIComponent(sourceText)}`}
+              className="text-sm underline"
             >
               Generate metadata for this →
             </Link>

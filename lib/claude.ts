@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Tool } from "@anthropic-ai/sdk/resources/messages";
 import { containsEmDash, stripEmDashes } from "./emDash";
-import type { KeywordEntry, PlatformKey, Project } from "./types";
+import type { KeywordEntry, PlatformKey, Project, TitleBankEntry } from "./types";
 import { PLATFORM_LABELS, SUGGESTED_HOOK_TYPES } from "./types";
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
@@ -206,6 +206,56 @@ export async function generateHooks(
     hookTool
   );
   return result.hooks;
+}
+
+// ---------- Title generation ----------
+
+function titleTool(platforms: PlatformKey[]): Tool {
+  const properties: Record<string, unknown> = {};
+  for (const p of platforms) {
+    properties[p] = {
+      type: "array",
+      items: { type: "string" },
+      description: `3 to 5 title variations for ${PLATFORM_LABELS[p]}.`,
+    };
+  }
+  return {
+    name: "return_titles",
+    description: "Return 3 to 5 title variations for each requested platform.",
+    input_schema: {
+      type: "object",
+      properties,
+      required: platforms,
+      additionalProperties: false,
+    },
+    strict: true,
+  };
+}
+
+export async function generateTitles(
+  project: Project,
+  keywords: KeywordEntry[],
+  titleBank: TitleBankEntry[],
+  sourceText: string,
+  platforms: PlatformKey[]
+): Promise<Partial<Record<PlatformKey, string[]>>> {
+  const baseSystem = buildSystemPrompt(project, keywords);
+  const titleBankBlock = titleBank.length
+    ? `\n\nTitles that have proven to convert well before for this project. Study their structure, length, pacing, and hook words, then apply those same underlying patterns to the new titles. Do not copy them verbatim or lightly reword one of them:\n${titleBank
+        .map((t) => `- ${t.text}`)
+        .join("\n")}`
+    : "";
+  const system = baseSystem + titleBankBlock;
+  const user = `Generate 3 to 5 title variations for each of these platforms: ${platforms
+    .map((p) => PLATFORM_LABELS[p])
+    .join(
+      ", "
+    )}.\n\nBased on this idea or script:\n\n${sourceText}\n\nYouTube titles should be clickable and searchable. TikTok and Instagram titles should read like a scroll-stopping caption or on-screen hook, not a formal title. Each variation within a platform should try a genuinely different angle, not just reword the same one.`;
+  return generateWithEmDashGuard<Partial<Record<PlatformKey, string[]>>>(
+    system,
+    user,
+    titleTool(platforms)
+  );
 }
 
 // ---------- Teleprompter script generation ----------

@@ -64,6 +64,13 @@ export interface Topic {
   createdAt: number;
 }
 
+export interface TitleBankEntry {
+  id: string;
+  text: string;
+  notes?: string;
+  createdAt: number;
+}
+
 export interface Hook {
   text: string;
   type: string;

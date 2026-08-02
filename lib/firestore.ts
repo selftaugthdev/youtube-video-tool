@@ -14,7 +14,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { ContentItem, KeywordEntry, Project, Topic } from "./types";
+import type { ContentItem, KeywordEntry, Project, TitleBankEntry, Topic } from "./types";
 
 // ---------- Projects ----------
 
@@ -93,6 +93,58 @@ export async function deleteKeyword(
 export async function listKeywordsOnce(projectId: string): Promise<KeywordEntry[]> {
   const snap = await getDocs(keywordsCol(projectId));
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<KeywordEntry, "id">) }));
+}
+
+// ---------- Title bank (proven-to-convert title swipe file) ----------
+
+const titleBankCol = (projectId: string) => collection(db, "projects", projectId, "titleBank");
+
+export function subscribeTitleBank(
+  projectId: string,
+  cb: (titles: TitleBankEntry[]) => void
+): Unsubscribe {
+  const q = query(titleBankCol(projectId), orderBy("createdAt", "desc"));
+  return onSnapshot(q, (snap) => {
+    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TitleBankEntry, "id">) })));
+  });
+}
+
+export async function addTitleBankEntry(
+  projectId: string,
+  text: string,
+  notes?: string
+): Promise<string> {
+  const ref = await addDoc(titleBankCol(projectId), {
+    text,
+    notes: notes ?? "",
+    createdAt: Date.now(),
+  });
+  return ref.id;
+}
+
+export async function addTitleBankEntriesBulk(projectId: string, texts: string[]): Promise<void> {
+  const batch = writeBatch(db);
+  const now = Date.now();
+  for (const text of texts) {
+    batch.set(doc(titleBankCol(projectId)), { text, notes: "", createdAt: now });
+  }
+  await batch.commit();
+}
+
+export async function deleteTitleBankEntry(projectId: string, titleId: string): Promise<void> {
+  await deleteDoc(doc(db, "projects", projectId, "titleBank", titleId));
+}
+
+export async function clearTitleBank(projectId: string): Promise<void> {
+  const snap = await getDocs(titleBankCol(projectId));
+  const batch = writeBatch(db);
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+}
+
+export async function listTitleBankOnce(projectId: string): Promise<TitleBankEntry[]> {
+  const snap = await getDocs(titleBankCol(projectId));
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TitleBankEntry, "id">) }));
 }
 
 // ---------- Topic bank (uploaded video topic backlog) ----------
