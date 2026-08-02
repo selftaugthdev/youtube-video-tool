@@ -179,6 +179,16 @@ export function subscribeProjectContent(
   });
 }
 
+export function subscribeContentItem(
+  projectId: string,
+  contentId: string,
+  cb: (item: ContentItem | null) => void
+): Unsubscribe {
+  return onSnapshot(doc(db, "projects", projectId, "content", contentId), (snap) => {
+    cb(snap.exists() ? { id: snap.id, ...(snap.data() as Omit<ContentItem, "id">) } : null);
+  });
+}
+
 export async function createContentItem(
   projectId: string,
   data: Partial<Omit<ContentItem, "id" | "projectId" | "createdAt" | "updatedAt">>

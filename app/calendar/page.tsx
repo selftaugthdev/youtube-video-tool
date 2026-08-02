@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useProjectContext } from "@/lib/projectContext";
 import { deleteContentItem, subscribeAllContent, updateContentItem } from "@/lib/firestore";
 import { PLATFORM_LABELS, STAGES, STAGE_LABELS, type ContentItem, type Stage } from "@/lib/types";
@@ -24,12 +25,19 @@ function ContentCard({ item, projectName }: { item: ContentItem; projectName: st
         <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium dark:bg-white/10">
           {projectName}
         </span>
-        <button onClick={remove} className="text-xs text-red-600 hover:underline">
-          Delete
-        </button>
+        <div className="flex gap-2">
+          <Link href={`/content/${item.projectId}/${item.id}`} className="text-xs underline">
+            View
+          </Link>
+          <button onClick={remove} className="text-xs text-red-600 hover:underline">
+            Delete
+          </button>
+        </div>
       </div>
 
-      <p className="line-clamp-3">{item.ideaSummary || "(untitled)"}</p>
+      <Link href={`/content/${item.projectId}/${item.id}`} className="line-clamp-3 hover:underline">
+        {item.ideaSummary || "(untitled)"}
+      </Link>
 
       {item.platforms.length > 0 && (
         <div className="flex flex-wrap gap-1 text-xs text-black/60 dark:text-white/60">
