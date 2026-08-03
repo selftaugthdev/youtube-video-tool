@@ -6,7 +6,13 @@ import { useProjectContext } from "@/lib/projectContext";
 import { subscribeTitleBank, updateContentItem } from "@/lib/firestore";
 import NoProjectNotice from "@/components/NoProjectNotice";
 import ContentItemPicker from "@/components/ContentItemPicker";
-import { PLATFORM_LABELS, type ContentItem, type PlatformKey, type TitleBankEntry } from "@/lib/types";
+import {
+  PLATFORM_LABELS,
+  type ContentItem,
+  type PlatformKey,
+  type PlatformVariant,
+  type TitleBankEntry,
+} from "@/lib/types";
 
 function TitleGenerator() {
   const { selectedProject, keywords } = useProjectContext();
@@ -16,10 +22,13 @@ function TitleGenerator() {
   const [platforms, setPlatforms] = useState<PlatformKey[]>(selectedProject?.platforms ?? []);
   const [titleBank, setTitleBank] = useState<TitleBankEntry[]>([]);
   const [titles, setTitles] = useState<Partial<Record<PlatformKey, string[]>> | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<Partial<Record<PlatformKey, number>>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attachTo, setAttachTo] = useState<ContentItem | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!selectedProject) return;
@@ -34,6 +43,7 @@ function TitleGenerator() {
     if (!sourceText.trim() || !selectedProject) return;
     setLoading(true);
     setError(null);
+    setSaved(false);
     try {
       const res = await fetch("/api/generate/titles", {
         method: "POST",
@@ -47,8 +57,13 @@ function TitleGenerator() {
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Generation failed");
-      const data = await res.json();
+      const data: { titles: Partial<Record<PlatformKey, string[]>> } = await res.json();
       setTitles(data.titles);
+      const defaults: Partial<Record<PlatformKey, number>> = {};
+      for (const p of Object.keys(data.titles) as PlatformKey[]) {
+        defaults[p] = 0;
+      }
+      setSelectedIndex(defaults);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -63,21 +78,35 @@ function TitleGenerator() {
     setTimeout(() => setCopied((c) => (c === key ? null : c)), 1500);
   }
 
-  async function applyTitle(platform: PlatformKey, text: string) {
-    if (!selectedProject || !attachTo) return;
-    const existing = attachTo.platformVariants[platform];
-    await updateContentItem(selectedProject.id, attachTo.id, {
-      platformVariants: {
+  async function saveTitles() {
+    if (!selectedProject || !attachTo || !titles) return;
+    setSaving(true);
+    try {
+      const nextVariants: Partial<Record<PlatformKey, PlatformVariant>> = {
         ...attachTo.platformVariants,
-        [platform]: {
+      };
+      for (const p of Object.keys(titles) as PlatformKey[]) {
+        const variants = titles[p];
+        const index = selectedIndex[p];
+        if (!variants || index === undefined) continue;
+        const existing = attachTo.platformVariants[p];
+        nextVariants[p] = {
           treatment: existing?.treatment ?? "",
           description: existing?.description ?? "",
           tags: existing?.tags ?? [],
-          title: text,
-        },
-      },
-      platforms: Array.from(new Set([...attachTo.platforms, platform])) as PlatformKey[],
-    });
+          title: variants[index],
+        };
+      }
+      await updateContentItem(selectedProject.id, attachTo.id, {
+        platformVariants: nextVariants,
+        platforms: Array.from(
+          new Set([...attachTo.platforms, ...(Object.keys(titles) as PlatformKey[])])
+        ) as PlatformKey[],
+      });
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -133,6 +162,9 @@ function TitleGenerator() {
 
       {titles && (
         <div className="flex flex-col gap-4">
+          <p className="text-xs text-black/50 dark:text-white/50">
+            Click a title to pick it as the one to save for that platform.
+          </p>
           <div className="grid gap-4 md:grid-cols-3">
             {(Object.keys(titles) as PlatformKey[]).map((p) => {
               const variants = titles[p];
@@ -141,30 +173,34 @@ function TitleGenerator() {
                 <div key={p} className="rounded-lg border border-black/10 p-4 dark:border-white/10">
                   <h2 className="mb-2 font-medium">{PLATFORM_LABELS[p]}</h2>
                   <div className="flex flex-col gap-2">
-                    {variants.map((title, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between gap-2 rounded border border-black/10 px-2 py-1.5 text-sm dark:border-white/10"
-                      >
-                        <span>{title}</span>
-                        <div className="flex shrink-0 gap-2">
+                    {variants.map((title, i) => {
+                      const isSelected = selectedIndex[p] === i;
+                      return (
+                        <div
+                          key={i}
+                          onClick={() => {
+                            setSelectedIndex((prev) => ({ ...prev, [p]: i }));
+                            setSaved(false);
+                          }}
+                          className={`flex cursor-pointer items-center justify-between gap-2 rounded border px-2 py-1.5 text-sm ${
+                            isSelected
+                              ? "border-black/30 dark:border-white/40"
+                              : "border-black/10 dark:border-white/10"
+                          }`}
+                        >
+                          <span>{title}</span>
                           <button
-                            onClick={() => copyTitle(p, i, title)}
-                            className="text-xs underline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyTitle(p, i, title);
+                            }}
+                            className="shrink-0 text-xs underline"
                           >
                             {copied === `${p}-${i}` ? "Copied" : "Copy"}
                           </button>
-                          {attachTo && (
-                            <button
-                              onClick={() => applyTitle(p, title)}
-                              className="text-xs underline"
-                            >
-                              Use this
-                            </button>
-                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -172,17 +208,25 @@ function TitleGenerator() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
-            <span className="text-sm text-black/60 dark:text-white/60">
-              Save into calendar item (optional):
-            </span>
+            <span className="text-sm text-black/60 dark:text-white/60">Save to:</span>
             <ContentItemPicker
               projectId={selectedProject.id}
               selectedId={attachTo?.id ?? null}
-              onSelect={setAttachTo}
+              onSelect={(item) => {
+                setAttachTo(item);
+                setSaved(false);
+              }}
             />
+            <button
+              onClick={saveTitles}
+              disabled={!attachTo || saving}
+              className="rounded bg-foreground px-3 py-1.5 text-sm text-background disabled:opacity-50"
+            >
+              {saving ? "Saving..." : saved ? "Saved" : "Save titles"}
+            </button>
             {!attachTo && (
               <span className="text-xs text-black/50 dark:text-white/50">
-                Pick an item to enable &ldquo;Use this&rdquo; on each title.
+                Pick a calendar item above to enable saving.
               </span>
             )}
           </div>
