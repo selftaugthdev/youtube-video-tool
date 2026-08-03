@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { deleteContentItem, subscribeContentItem, updateContentItem } from "@/lib/firestore";
 import { formatTimestamp } from "@/lib/format";
+import PlatformVariantCard from "@/components/PlatformVariantCard";
 import {
   PLATFORM_LABELS,
   STAGES,
@@ -192,24 +193,13 @@ export default function ContentDetailPage() {
               const v = item.platformVariants[p];
               if (!v) return null;
               return (
-                <div key={p} className="rounded border border-black/10 p-3 dark:border-white/10">
-                  <h3 className="mb-2 text-sm font-medium">{PLATFORM_LABELS[p]}</h3>
-                  <p className="mb-2 text-xs italic text-black/60 dark:text-white/60">
-                    {v.treatment}
-                  </p>
-                  <p className="mb-2 text-sm font-medium">{v.title}</p>
-                  <p className="mb-2 whitespace-pre-wrap text-sm">{v.description}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {v.tags.map((tag, i) => (
-                      <span
-                        key={i}
-                        className="rounded-full bg-black/5 px-2 py-0.5 text-xs dark:bg-white/10"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                <PlatformVariantCard
+                  key={p}
+                  projectId={projectId}
+                  contentId={id}
+                  platform={p}
+                  variant={v}
+                />
               );
             })}
           </div>

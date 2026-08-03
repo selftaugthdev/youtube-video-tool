@@ -14,7 +14,15 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { ContentItem, KeywordEntry, Project, TitleBankEntry, Topic } from "./types";
+import type {
+  ContentItem,
+  KeywordEntry,
+  PlatformKey,
+  PlatformVariant,
+  Project,
+  TitleBankEntry,
+  Topic,
+} from "./types";
 
 // ---------- Projects ----------
 
@@ -273,6 +281,20 @@ export async function updateContentItem(
 ): Promise<void> {
   await updateDoc(doc(db, "projects", projectId, "content", contentId), {
     ...patch,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function updatePlatformVariant(
+  projectId: string,
+  contentId: string,
+  platform: PlatformKey,
+  variant: PlatformVariant
+): Promise<void> {
+  // Dot-path update so this only ever touches this one platform's variant,
+  // never overwrites sibling platforms the way replacing the whole map would.
+  await updateDoc(doc(db, "projects", projectId, "content", contentId), {
+    [`platformVariants.${platform}`]: variant,
     updatedAt: Date.now(),
   });
 }
