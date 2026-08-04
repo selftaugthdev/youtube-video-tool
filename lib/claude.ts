@@ -366,7 +366,7 @@ function repurposeTool(platforms: PlatformKey[]): Tool {
         type: "array",
         items: { type: "string" },
         description:
-          "YouTube: tags field entries. TikTok: hashtags (include the # symbol). Instagram: hashtags (include the # symbol).",
+          "YouTube: tags field entries. YouTube hard-caps this at 500 total characters across all tags combined (joined with commas), and anything over that gets truncated. Count carefully and stay under 500, typically that means around 20-30 tags depending on their length, not just 5-8. Mix broad head terms, specific long-tail phrases, common misspellings/variants, and the project's keyword bank and content pillars, don't pad with irrelevant filler just to fill space. TikTok: a smaller, curated set of hashtags (include the # symbol), more is not better here. Instagram: same, a curated set of hashtags (include the # symbol).",
       },
     },
     required: ["treatment", "title", "description", "tags"],
@@ -403,10 +403,33 @@ export async function generatePlatformVariants(
     .map((p) => PLATFORM_LABELS[p])
     .join(
       ", "
-    )}.\n\nSource idea/script:\n\n${sourceText}\n\nEach platform's treatment must genuinely differ in execution (e.g. a YouTube long-form explainer vs. a TikTok hook-first cut vs. an Instagram Reel or carousel), not just be the same copy reformatted.`;
-  return generateWithEmDashGuard<Partial<Record<PlatformKey, PlatformVariantResult>>>(
+    )}.\n\nSource idea/script:\n\n${sourceText}\n\nEach platform's treatment must genuinely differ in execution (e.g. a YouTube long-form explainer vs. a TikTok hook-first cut vs. an Instagram Reel or carousel), not just be the same copy reformatted.${
+    platforms.includes("youtube")
+      ? " For YouTube tags specifically, get close to the 500 character limit (all tags joined by commas) without going over it, that's usually 20-30 tags mixing broad and long-tail keyword phrases, not a short list of 5-8."
+      : ""
+  }`;
+  const result = await generateWithEmDashGuard<Partial<Record<PlatformKey, PlatformVariantResult>>>(
     system,
     user,
     repurposeTool(platforms)
   );
+  if (result.youtube) {
+    result.youtube = { ...result.youtube, tags: capYoutubeTags(result.youtube.tags) };
+  }
+  return result;
+}
+
+const YOUTUBE_TAGS_CHAR_LIMIT = 500;
+
+/** Hard safety net: YouTube truncates the tags field past 500 chars, so never let the model's count drift over it. */
+function capYoutubeTags(tags: string[]): string[] {
+  const capped: string[] = [];
+  let length = 0;
+  for (const tag of tags) {
+    const additional = capped.length === 0 ? tag.length : tag.length + 1;
+    if (length + additional > YOUTUBE_TAGS_CHAR_LIMIT) break;
+    capped.push(tag);
+    length += additional;
+  }
+  return capped;
 }
