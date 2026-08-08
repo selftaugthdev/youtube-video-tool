@@ -11,14 +11,18 @@ import type { GeneratedScript } from "@/lib/claude";
 import type { ContentItem } from "@/lib/types";
 import { formatTimestamp } from "@/lib/format";
 
+type Mode = "generate" | "paste";
+
 function ScriptGenerator() {
   const { selectedProject, keywords } = useProjectContext();
   const searchParams = useSearchParams();
 
+  const [mode, setMode] = useState<Mode>("generate");
   const [sourceText, setSourceText] = useState(searchParams.get("text") ?? "");
   const [targetLength, setTargetLength] = useState(
     selectedProject?.targetLength || "1 to 2 minutes"
   );
+  const [pastedNotes, setPastedNotes] = useState("");
   const [script, setScript] = useState<GeneratedScript | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +30,13 @@ function ScriptGenerator() {
   const [saved, setSaved] = useState(false);
 
   if (!selectedProject) return <NoProjectNotice />;
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    setScript(null);
+    setSaved(false);
+    setError(null);
+  }
 
   async function generate() {
     if (!sourceText.trim() || !selectedProject) return;
@@ -53,6 +64,19 @@ function ScriptGenerator() {
     }
   }
 
+  function useOwnScript() {
+    if (!sourceText.trim()) return;
+    setSaved(false);
+    const lines = sourceText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    setScript({
+      sections: [{ label: "Script", timestampSeconds: 0, lines }],
+      notes: pastedNotes,
+    });
+  }
+
   async function saveScript() {
     if (!selectedProject || !script) return;
     if (attachTo) {
@@ -75,35 +99,79 @@ function ScriptGenerator() {
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold">Teleprompter script — {selectedProject.name}</h1>
 
+      <div className="flex gap-1 text-sm">
+        <button
+          onClick={() => switchMode("generate")}
+          className={`rounded px-3 py-1.5 ${
+            mode === "generate"
+              ? "bg-black/10 font-medium dark:bg-white/15"
+              : "border border-black/15 dark:border-white/20"
+          }`}
+        >
+          Generate a script
+        </button>
+        <button
+          onClick={() => switchMode("paste")}
+          className={`rounded px-3 py-1.5 ${
+            mode === "paste"
+              ? "bg-black/10 font-medium dark:bg-white/15"
+              : "border border-black/15 dark:border-white/20"
+          }`}
+        >
+          I already have a script
+        </button>
+      </div>
+
       <div className="flex flex-col gap-2">
         <label className="text-sm text-black/60 dark:text-white/60">
-          Paste any idea, hook, or raw topic. Works standalone, no need to run the other
-          generators first.
+          {mode === "generate"
+            ? "Paste any idea, hook, or raw topic. Works standalone, no need to run the other generators first."
+            : "Paste your full script here, one line per teleprompter line."}
         </label>
         <textarea
           className="rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
-          rows={4}
+          rows={mode === "generate" ? 4 : 10}
           value={sourceText}
           onChange={(e) => setSourceText(e.target.value)}
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-sm text-black/60 dark:text-white/60">Target spoken length</label>
-        <input
-          className="w-56 rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
-          placeholder="e.g. 1 to 2 minutes"
-          value={targetLength}
-          onChange={(e) => setTargetLength(e.target.value)}
-        />
-      </div>
+      {mode === "generate" && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-black/60 dark:text-white/60">Target spoken length</label>
+          <input
+            className="w-56 rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
+            placeholder="e.g. 1 to 2 minutes"
+            value={targetLength}
+            onChange={(e) => setTargetLength(e.target.value)}
+          />
+        </div>
+      )}
+
+      {mode === "paste" && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-black/60 dark:text-white/60">
+            Notes (optional), stage directions or shot notes
+          </label>
+          <textarea
+            className="rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
+            rows={2}
+            value={pastedNotes}
+            onChange={(e) => setPastedNotes(e.target.value)}
+          />
+        </div>
+      )}
 
       <button
-        onClick={generate}
-        disabled={loading || !sourceText.trim()}
+        onClick={mode === "generate" ? generate : useOwnScript}
+        disabled={(mode === "generate" && loading) || !sourceText.trim()}
         className="self-start rounded bg-foreground px-4 py-1.5 text-sm text-background disabled:opacity-50"
       >
-        {loading ? "Generating..." : "Generate script"}
+        {mode === "generate"
+          ? loading
+            ? "Generating..."
+            : "Generate script"
+          : "Use this script"}
       </button>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
