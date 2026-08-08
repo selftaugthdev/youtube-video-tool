@@ -3,14 +3,30 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useProjectContext } from "@/lib/projectContext";
-import { deleteContentItem, subscribeAllContent, updateContentItem } from "@/lib/firestore";
-import { PLATFORM_LABELS, STAGES, STAGE_LABELS, type ContentItem, type Stage } from "@/lib/types";
+import { deleteContentItem, subscribeAllContent, subscribeAllShots, updateContentItem } from "@/lib/firestore";
+import { hasUnresolvedMustHaves } from "@/lib/shots";
+import { PLATFORM_LABELS, STAGES, STAGE_LABELS, type ContentItem, type Shot, type Stage } from "@/lib/types";
 
-function ContentCard({ item, projectName }: { item: ContentItem; projectName: string }) {
+function ContentCard({
+  item,
+  projectName,
+  shots,
+}: {
+  item: ContentItem;
+  projectName: string;
+  shots: Shot[];
+}) {
   const hook =
     item.selectedHookIndex != null ? item.hooks[item.selectedHookIndex] : item.hooks[0];
+  const blockingShots = hasUnresolvedMustHaves(shots);
 
   async function changeStage(stage: Stage) {
+    if (stage === "edited" && blockingShots) {
+      const proceed = window.confirm(
+        "Some must-have shots are still marked Needed. Move to Edited anyway?"
+      );
+      if (!proceed) return;
+    }
     await updateContentItem(item.projectId, item.id, { stage });
   }
 
@@ -57,6 +73,12 @@ function ContentCard({ item, projectName }: { item: ContentItem; projectName: st
         </span>
       )}
 
+      {blockingShots && (item.stage === "shot" || item.stage === "shoot_scheduled") && (
+        <span className="w-fit rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400">
+          Must-have shots pending
+        </span>
+      )}
+
       <select
         value={item.stage}
         onChange={(e) => changeStage(e.target.value as Stage)}
@@ -75,16 +97,28 @@ function ContentCard({ item, projectName }: { item: ContentItem; projectName: st
 export default function CalendarPage() {
   const { projects } = useProjectContext();
   const [items, setItems] = useState<ContentItem[]>([]);
+  const [shots, setShots] = useState<Shot[]>([]);
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [stageFilter, setStageFilter] = useState<Set<Stage>>(new Set(STAGES));
 
   useEffect(() => subscribeAllContent(setItems), []);
+  useEffect(() => subscribeAllShots(setShots), []);
 
   const projectNames = useMemo(() => {
     const map = new Map<string, string>();
     projects.forEach((p) => map.set(p.id, p.name));
     return map;
   }, [projects]);
+
+  const shotsByContent = useMemo(() => {
+    const map = new Map<string, Shot[]>();
+    for (const shot of shots) {
+      const list = map.get(shot.contentId) ?? [];
+      list.push(shot);
+      map.set(shot.contentId, list);
+    }
+    return map;
+  }, [shots]);
 
   const filtered = items.filter(
     (item) => (projectFilter === "all" || item.projectId === projectFilter) && stageFilter.has(item.stage)
@@ -156,6 +190,7 @@ export default function CalendarPage() {
                     key={item.id}
                     item={item}
                     projectName={projectNames.get(item.projectId) ?? "Unknown"}
+                    shots={shotsByContent.get(item.id) ?? []}
                   />
                 ))}
             </div>

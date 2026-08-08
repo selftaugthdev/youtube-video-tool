@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Tool } from "@anthropic-ai/sdk/resources/messages";
 import { containsEmDash, stripEmDashes } from "./emDash";
-import type { KeywordEntry, PlatformKey, Project, TitleBankEntry } from "./types";
-import { PLATFORM_LABELS, SUGGESTED_HOOK_TYPES } from "./types";
+import type { KeywordEntry, PlatformKey, Project, ShotPriority, ShotType, TitleBankEntry } from "./types";
+import { PLATFORM_LABELS, SHOT_PRIORITIES, SHOT_TYPES, SUGGESTED_HOOK_TYPES } from "./types";
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 
@@ -432,4 +432,71 @@ function capYoutubeTags(tags: string[]): string[] {
     length += additional;
   }
   return capped;
+}
+
+// ---------- Shotlist generation ----------
+
+export interface GeneratedShot {
+  order: number;
+  type: ShotType;
+  description: string;
+  scriptRef: string;
+  priority: ShotPriority;
+}
+
+const shotlistTool: Tool = {
+  name: "return_shotlist",
+  description: "Break a short-form video script into an ordered shotlist for a solo creator filming alone.",
+  input_schema: {
+    type: "object",
+    properties: {
+      shots: {
+        type: "array",
+        description:
+          "Natural shot changes through the script (hook, problem, proof or tip, solution, CTA), plus supplementary B-roll or insert opportunities that support what's being said.",
+        items: {
+          type: "object",
+          properties: {
+            order: {
+              type: "integer",
+              description: "Order this shot appears in the video, starting at 1.",
+            },
+            type: {
+              type: "string",
+              enum: [...SHOT_TYPES],
+              description: "Shot type.",
+            },
+            description: {
+              type: "string",
+              description:
+                "What to point the camera at, plain language, specific enough to shoot from without further thought.",
+            },
+            scriptRef: {
+              type: "string",
+              description: "The line or beat from the script this shot covers.",
+            },
+            priority: {
+              type: "string",
+              enum: [...SHOT_PRIORITIES],
+              description:
+                "Must-have for anything covering spoken content (the talking-head read of the script itself). Nice-to-have for supplementary B-roll or inserts that help but aren't essential.",
+            },
+          },
+          required: ["order", "type", "description", "scriptRef", "priority"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["shots"],
+    additionalProperties: false,
+  },
+  strict: true,
+};
+
+export async function generateShotlist(scriptText: string): Promise<GeneratedShot[]> {
+  const system =
+    "You are breaking a short-form video script into a shotlist for a solo creator filming alone, no crew.";
+  const user = `Script:\n\n${scriptText}\n\nIdentify natural shot changes and suggest B-roll or insert opportunities that support what's being said. Default priority to Must-have for anything covering spoken content, Nice-to-have for supplementary B-roll.`;
+  const result = await callTool<{ shots: GeneratedShot[] }>(system, user, shotlistTool);
+  return result.shots;
 }

@@ -20,6 +20,7 @@ import type {
   PlatformKey,
   PlatformVariant,
   Project,
+  Shot,
   TitleBankEntry,
   Topic,
 } from "./types";
@@ -304,4 +305,78 @@ export async function deleteContentItem(
   contentId: string
 ): Promise<void> {
   await deleteDoc(doc(db, "projects", projectId, "content", contentId));
+}
+
+// ---------- Shotlist ----------
+
+const shotsCol = (projectId: string, contentId: string) =>
+  collection(db, "projects", projectId, "content", contentId, "shots");
+
+export function subscribeShots(
+  projectId: string,
+  contentId: string,
+  cb: (shots: Shot[]) => void
+): Unsubscribe {
+  const q = query(shotsCol(projectId, contentId), orderBy("orderNum", "asc"));
+  return onSnapshot(q, (snap) => {
+    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Shot, "id">) })));
+  });
+}
+
+export function subscribeAllShots(cb: (shots: Shot[]) => void): Unsubscribe {
+  // No orderBy here on purpose, same reasoning as subscribeAllContent: a
+  // collection-group query with orderBy needs a manually-created Firestore
+  // index. Sorting client-side avoids that setup step.
+  return onSnapshot(collectionGroup(db, "shots"), (snap) => {
+    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Shot, "id">) })));
+  });
+}
+
+export async function addShot(
+  projectId: string,
+  contentId: string,
+  data: Omit<Shot, "id" | "projectId" | "contentId" | "createdAt">
+): Promise<string> {
+  const ref = await addDoc(shotsCol(projectId, contentId), {
+    ...data,
+    projectId,
+    contentId,
+    createdAt: Date.now(),
+  });
+  return ref.id;
+}
+
+export async function addShotsBulk(
+  projectId: string,
+  contentId: string,
+  shots: Omit<Shot, "id" | "projectId" | "contentId" | "createdAt">[]
+): Promise<void> {
+  const batch = writeBatch(db);
+  const now = Date.now();
+  for (const shot of shots) {
+    batch.set(doc(shotsCol(projectId, contentId)), {
+      ...shot,
+      projectId,
+      contentId,
+      createdAt: now,
+    });
+  }
+  await batch.commit();
+}
+
+export async function updateShot(
+  projectId: string,
+  contentId: string,
+  shotId: string,
+  patch: Partial<Omit<Shot, "id" | "projectId" | "contentId" | "createdAt">>
+): Promise<void> {
+  await updateDoc(doc(db, "projects", projectId, "content", contentId, "shots", shotId), patch);
+}
+
+export async function deleteShot(
+  projectId: string,
+  contentId: string,
+  shotId: string
+): Promise<void> {
+  await deleteDoc(doc(db, "projects", projectId, "content", contentId, "shots", shotId));
 }

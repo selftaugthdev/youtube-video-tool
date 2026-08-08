@@ -102,6 +102,29 @@ export interface ScriptSection {
   lines: string[];
 }
 
+export const SHOT_TYPES = ["A-roll", "B-roll", "Insert", "Text overlay"] as const;
+export type ShotType = (typeof SHOT_TYPES)[number];
+
+export const SHOT_PRIORITIES = ["Must-have", "Nice-to-have"] as const;
+export type ShotPriority = (typeof SHOT_PRIORITIES)[number];
+
+export const SHOT_STATUSES = ["Needed", "Got it"] as const;
+export type ShotStatus = (typeof SHOT_STATUSES)[number];
+
+export interface Shot {
+  id: string;
+  projectId: string;
+  contentId: string;
+  orderNum: number;
+  type: ShotType;
+  description: string;
+  scriptRef: string;
+  gearNote: string;
+  priority: ShotPriority;
+  status: ShotStatus;
+  createdAt: number;
+}
+
 export interface ContentItem {
   id: string;
   projectId: string;

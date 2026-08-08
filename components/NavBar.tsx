@@ -6,6 +6,7 @@ import { useProjectContext } from "@/lib/projectContext";
 
 const LINKS = [
   { href: "/calendar", label: "Calendar" },
+  { href: "/shots", label: "Today's shots" },
   { href: "/generate/idea", label: "Ideas" },
   { href: "/generate/hooks", label: "Hooks" },
   { href: "/generate/titles", label: "Titles" },

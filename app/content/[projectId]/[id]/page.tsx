@@ -3,15 +3,23 @@
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { deleteContentItem, subscribeContentItem, updateContentItem } from "@/lib/firestore";
+import {
+  deleteContentItem,
+  subscribeContentItem,
+  subscribeShots,
+  updateContentItem,
+} from "@/lib/firestore";
 import { formatTimestamp } from "@/lib/format";
+import { hasUnresolvedMustHaves } from "@/lib/shots";
 import PlatformVariantCard from "@/components/PlatformVariantCard";
+import ShotlistSection from "@/components/ShotlistSection";
 import {
   PLATFORM_LABELS,
   STAGES,
   STAGE_LABELS,
   type ContentItem,
   type PlatformKey,
+  type Shot,
   type Stage,
 } from "@/lib/types";
 
@@ -21,11 +29,23 @@ export default function ContentDetailPage() {
   const { projectId, id } = params;
 
   const [item, setItem] = useState<ContentItem | null | undefined>(undefined);
+  const [shots, setShots] = useState<Shot[]>([]);
 
   useEffect(() => subscribeContentItem(projectId, id, setItem), [projectId, id]);
+  useEffect(() => subscribeShots(projectId, id, setShots), [projectId, id]);
 
   async function changeStage(stage: Stage) {
+    if (stage === "edited" && hasUnresolvedMustHaves(shots)) {
+      const proceed = window.confirm(
+        "Some must-have shots are still marked Needed. Move to Edited anyway?"
+      );
+      if (!proceed) return;
+    }
     await updateContentItem(projectId, id, { stage });
+  }
+
+  async function changeShootDate(date: string) {
+    await updateContentItem(projectId, id, { shootDate: date });
   }
 
   async function selectHook(index: number) {
@@ -80,6 +100,13 @@ export default function ContentDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={item.shootDate ?? ""}
+            onChange={(e) => changeShootDate(e.target.value)}
+            title="Shoot date"
+            className="rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
+          />
           <select
             value={item.stage}
             onChange={(e) => changeStage(e.target.value as Stage)}
@@ -171,6 +198,20 @@ export default function ContentDetailPage() {
           </>
         )}
       </section>
+
+      {item.script && (
+        <section className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/10">
+          <h2 className="font-medium">Shotlist</h2>
+          <ShotlistSection
+            projectId={projectId}
+            contentId={id}
+            scriptText={item.script.sections
+              .map((s) => `${s.label}: ${s.lines.join(" ")}`)
+              .join("\n")}
+            shots={shots}
+          />
+        </section>
+      )}
 
       <section className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/10">
         <div className="flex items-center justify-between">
